@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chef Assistant - 智能厨师助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f5f5f5;
+        }
+
+        /* 顶部导航栏 */
+        .header {
+            width: 100%;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            background-color: #fff;
+            border-bottom: 1px solid #eee;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header .back-btn {
+            width: 24px;
+            height: 24px;
+            font-size: 20px;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .header .title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .header .more-btn {
+            width: 24px;
+            height: 24px;
+            font-size: 16px;
+            color: #333;
+            cursor: pointer;
+        }
+
+        /* 主容器 */
+        .main-container {
+            width: 100%;
+            height: calc(100vh - 60px);
+            position: relative;
+            background: url('https://github.com/FjGmlg/lglf/blob/master/aa.jpg') no-repeat center center;
+            background-size: cover;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 头像和波纹动效样式 */
+        .avatar-container {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid rgba(255, 255, 255, 0.8);
+            z-index: 2;
+            position: relative;
+            margin-bottom: 0;
+        }
+
+        /* 波纹动效 */
+        .wave {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            opacity: 0;
+            z-index: 1;
+        }
+
+        /* 波纹动画 */
+        @keyframes wave-animation {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        /* 激活波纹动效 */
+        .avatar-container.speaking .wave {
+            animation: wave-animation 2s infinite ease-out;
+        }
+
+        /* 多个波纹层，错开动画时间 */
+        .wave-1 { animation-delay: 0s; }
+        .wave-2 { animation-delay: 0.6s; }
+        .wave-3 { animation-delay: 1.2s; }
+
+        /* 状态提示（待命/通话中） */
+        .status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 14px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+        }
+
+        .status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #ccc;
+            margin-right: 8px;
+        }
+
+        .status.active::before {
+            background-color: #4cd964;
+            box-shadow: 0 0 8px #4cd964;
+        }
+
+        /* 右上角设置按钮 */
+        .settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 5;
+            transition: all 0.3s;
+        }
+
+        .settings-btn:hover {
+            background-color: #fff;
+            transform: rotate(15deg);
+        }
+
+        .settings-btn i {
+            font-size: 20px;
+            color: #666;
+        }
+
+        /* 通话控制栏 */
+        .call-controls {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            background-color: rgba(0,0,0,0.3);
+            backdrop-filter: blur(8px);
+            padding: 15px 30px;
+            border-radius: 50px;
+            z-index: 5;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .volume-btn {
+            background-color: rgba(255,255,255,0.8);
+            color: #333;
+            font-size: 24px;
+        }
+
+        .call-btn {
+            background-color: #28a745;
+            color: #fff;
+            font-size: 28px;
+        }
+
+        .hangup-btn {
+            background-color: rgba(255,255,255,0.8);
+            color: #dc3545;
+            font-size: 24px;
+        }
+
+        /* 问答显示面板 - 新增样式 */
+        .qa-display-panel {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 8;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .qa-display-panel.show {
+            opacity: 1;
+        }
+
+        .question-display {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .answer-display {
+            font-size: 14px;
+            color: #34495e;
+            line-height: 1.5;
+        }
+
+        /* 设置弹窗 */
+        .settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            width: 90%;
+            max-width: 400px;
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .qa-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .qa-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border 0.3s;
+        }
+
+        .qa-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0,123,255,0.2);
+        }
+
+        .add-qa-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: background-color 0.3s;
+        }
+
+        .add-qa-btn:hover {
+            background-color: #0069d9;
+        }
+
+        .save-qa-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .save-qa-btn:hover {
+            background-color: #218838;
+        }
+
+        .close-modal-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #6c757d;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .close-modal-btn:hover {
+            background-color: #5a6268;
+        }
+
+        /* 适配移动端 */
+        @media (max-width: 480px) {
+            .call-controls {
+                gap: 20px;
+                padding: 10px 20px;
+            }
+            .control-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+            .avatar-container {
+                width: 150px;
+                height: 150px;
+            }
+            .avatar {
+                width: 100px;
+                height: 100px;
+            }
+            .qa-display-panel {
+                top: 70px;
+                padding: 12px 15px;
+            }
+            .question-display {
+                font-size: 14px;
+            }
+            .answer-display {
+                font-size: 13px;
+            }
+        }
+    </style>
+    <!-- 引入图标库 -->
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="header">
+        <div class="back-btn"><i class="fas fa-times"></i></div>
+        <div class="title">AI Chef Assistant</div>
+        <div class="more-btn"><i class="fas fa-ellipsis-v"></i></div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-container">
+        <!-- 状态提示：默认添加active类，文字默认通话中 -->
+        <div class="status active" id="status">通话中</div>
+        
+        <!-- 设置按钮 -->
+        <div class="settings-btn" id="settingsBtn">
+            <i class="fas fa-cog"></i>
+        </div>
+
+        <!-- 问答显示面板 - 新增DOM -->
+        <div class="qa-display-panel" id="qaDisplayPanel">
+            <div class="question-display" id="questionDisplay"></div>
+            <div class="answer-display" id="answerDisplay"></div>
+        </div>
+
+        <!-- 头像和波纹动效容器 -->
+        <div class="avatar-container" id="avatarContainer">
+            <!-- 波纹层 -->
+            <div class="wave wave-1"></div>
+            <div class="wave wave-2"></div>
+            <div class="wave wave-3"></div>
+            <!-- 头像：美食相关在线图片 -->
+            <img src="https://github.com/FjGmlg/lglf/blob/master/aa.jpg" alt="AI Chef Avatar" class="avatar">
+        </div>
+
+        <!-- 通话控制按钮 -->
+        <div class="call-controls">
+            <button class="control-btn volume-btn" id="volumeBtn">
+                <i class="fas fa-volume-up"></i>
+            </button>
+            <button class="control-btn call-btn" id="callBtn">
+                <i class="fas fa-phone"></i>
+            </button>
+            <button class="control-btn hangup-btn" id="hangupBtn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-title">自定义问答设置</div>
+            
+            <!-- 问答列表容器 -->
+            <div id="qaList">
+                <!-- 初始默认问答 -->
+                <div class="qa-item">
+                    <input type="text" class="qa-input question-input" placeholder="输入问题" value="番茄炒蛋怎么做">
+                    <input type="text" class="qa-input answer-input" placeholder="输入答案" value="番茄炒蛋的做法：1. 番茄切块，鸡蛋打散；2. 热油下锅炒鸡蛋，成型后盛出；3. 炒番茄至出汁，加鸡蛋翻炒；4. 加盐调味即可。">
+                </div>
+                <div class="qa-item">
+                    <input type="text" class="qa-input question-input" placeholder="输入问题" value="红烧肉怎么做">
+                    <input type="text" class="qa-input answer-input" placeholder="输入答案" value="红烧肉的做法：1. 五花肉切块焯水；2. 炒糖色，加入肉块翻炒；3. 加葱姜蒜、料酒、生抽、老抽、冰糖；4. 加水焖煮40分钟，收汁即可。">
+                </div>
+            </div>
+
+            <!-- 添加问答按钮 -->
+            <button class="add-qa-btn" id="addQaBtn">+ 添加新的问答</button>
+
+            <!-- 保存/关闭按钮 -->
+            <button class="save-qa-btn" id="saveQaBtn">保存设置</button>
+            <button class="close-modal-btn" id="closeModalBtn">关闭</button>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let qaDatabase = []; // 问答数据库
+        let isCalling = true; // 初始化默认标记为通话中
+        let recognition = null; // 语音识别对象
+        let synth = window.speechSynthesis; // 语音合成对象
+        let avatarContainer = null; // 头像容器元素
+        let isInited = false; // 防止初始化重复执行
+        let qaDisplayTimer = null; // 问答显示面板的定时器
+
+        // DOM 元素
+        const statusEl = document.getElementById('status');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const qaList = document.getElementById('qaList');
+        const addQaBtn = document.getElementById('addQaBtn');
+        const saveQaBtn = document.getElementById('saveQaBtn');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const callBtn = document.getElementById('callBtn');
+        const hangupBtn = document.getElementById('hangupBtn');
+        const volumeBtn = document.getElementById('volumeBtn');
+        // 新增：问答显示面板相关元素
+        const qaDisplayPanel = document.getElementById('qaDisplayPanel');
+        const questionDisplay = document.getElementById('questionDisplay');
+        const answerDisplay = document.getElementById('answerDisplay');
+
+        // 页面加载完成立即初始化并强制进入通话中
+        window.addEventListener('DOMContentLoaded', function() {
+            if (isInited) return;
+            isInited = true;
+
+            // 初始化DOM元素
+            avatarContainer = document.getElementById('avatarContainer');
+            // 加载问答库（确保初始问答数据准确加载）
+            loadQaFromDom();
+            // 申请麦克风权限（即使权限失败，视觉状态仍为通话中，仅功能不可用）
+            requestMicrophonePermission();
+            // 初始化语音合成
+            initSpeechSynthesis();
+            
+            // 第一步：强制设置视觉状态为通话中（优先保证界面状态）
+            statusEl.textContent = '通话中';
+            statusEl.classList.add('active');
+            isCalling = true;
+            
+            // 第二步：立即播报欢迎语（确保初始化时必执行）
+            speakAnswer('您好，我是智能厨师助手，请问有什么可以帮助您的？');
+            
+            // 第三步：启动语音识别（确保通话功能生效）
+            startSpeechRecognition();
+            
+            console.log('初始化完成：已进入通话中状态，欢迎语已播报，语音识别已启动');
+        });
+
+        // 申请麦克风权限（权限失败仅提示，不改变通话中视觉状态）
+        function requestMicrophonePermission() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        console.log('麦克风权限已获取，通话功能正常');
+                    })
+                    .catch(function(err) {
+                        alert('麦克风权限申请失败，语音识别功能不可用，但仍保持通话中视觉状态！');
+                        console.error('麦克风权限申请失败:', err);
+                    });
+            } else {
+                alert('您的浏览器不支持语音识别功能，语音功能不可用，但仍保持通话中视觉状态！');
+                console.error('浏览器不支持语音识别API');
+            }
+        }
+
+        // 初始化语音合成
+        function initSpeechSynthesis() {
+            if (!synth) {
+                alert('您的浏览器不支持语音播报功能，但仍保持通话中视觉状态！');
+            }
+        }
+
+        // 从DOM加载问答数据（强化数据准确性，避免匹配错误）
+        function loadQaFromDom() {
+            qaDatabase = []; // 清空原有数据，彻底避免脏数据残留
+            const qaItems = qaList.querySelectorAll('.qa-item');
+            qaItems.forEach((item, index) => {
+                const questionInput = item.querySelector('.question-input');
+                const answerInput = item.querySelector('.answer-input');
+                
+                // 确保输入框元素存在，避免DOM获取错误
+                if (!questionInput || !answerInput) {
+                    console.warn(`第${index+1}个问答项元素缺失，跳过`);
+                    return;
+                }
+                
+                const question = questionInput.value.trim();
+                const answer = answerInput.value.trim();
+                
+                // 仅添加有有效问题和答案的项
+                if (question && answer) {
+                    qaDatabase.push({ question, answer });
+                    console.log(`加载问答项${index+1}: 问题="${question}"，答案="${answer}"`);
+                } else {
+                    console.warn(`第${index+1}个问答项内容为空，跳过`);
+                }
+            });
+            console.log('问答库加载完成，当前共' + qaDatabase.length + '条数据:', qaDatabase);
+        }
+
+        // 添加新的问答输入框
+        addQaBtn.addEventListener('click', function() {
+            const newQaItem = document.createElement('div');
+            newQaItem.className = 'qa-item';
+            newQaItem.innerHTML = `
+                <input type="text" class="qa-input question-input" placeholder="输入问题">
+                <input type="text" class="qa-input answer-input" placeholder="输入答案">
+            `;
+            qaList.appendChild(newQaItem);
+        });
+
+        // 保存问答设置（保存时重新加载，确保数据最新）
+        saveQaBtn.addEventListener('click', function() {
+            loadQaFromDom(); // 重新加载最新的问答数据
+            alert('问答设置已保存！当前问答库：\n' + qaDatabase.map((item, i) => `${i+1}. 问：${item.question}\n   答：${item.answer}`).join('\n\n'));
+            settingsModal.style.display = 'none';
+        });
+
+        // 打开设置弹窗
+        settingsBtn.addEventListener('click', function() {
+            settingsModal.style.display = 'flex';
+        });
+
+        // 关闭设置弹窗
+        closeModalBtn.addEventListener('click', function() {
+            settingsModal.style.display = 'none';
+        });
+
+        // 手动点击通话按钮（兼容手动操作，仅当非通话中时执行）
+        callBtn.addEventListener('click', function() {
+            if (!isCalling) {
+                // 强制切换为通话中状态
+                isCalling = true;
+                statusEl.textContent = '通话中';
+                statusEl.classList.add('active');
+                
+                // 播报重新通话的提示语
+                speakAnswer('已重新接通，请问有什么可以帮助您的？');
+                
+                // 启动/重启语音识别
+                startSpeechRecognition();
+                
+                console.log('手动点击通话按钮：已进入通话中状态，语音识别已启动');
+            }
+        });
+
+        // 挂断通话（仅手动点击可退出通话中）
+        hangupBtn.addEventListener('click', function() {
+            isCalling = false;
+            statusEl.textContent = '待命';
+            statusEl.classList.remove('active');
+            
+            // 停止语音识别
+            if (recognition) {
+                recognition.stop();
+                recognition = null;
+                console.log('语音识别已停止');
+            }
+            
+            // 停止语音播报
+            if (synth && synth.speaking) {
+                synth.cancel();
+                avatarContainer.classList.remove('speaking');
+                console.log('语音播报已停止');
+            }
+            
+            // 清除问答显示定时器
+            if (qaDisplayTimer) {
+                clearTimeout(qaDisplayTimer);
+                qaDisplayTimer = null;
+            }
+            // 隐藏问答面板
+            qaDisplayPanel.classList.remove('show');
+            
+            // 播报挂断提示
+            speakAnswer('通话已结束，如有需要请再次接通');
+            
+            console.log('已手动挂断通话，进入待命状态');
+        });
+
+        // 音量控制（静音/取消静音）
+        let isMuted = false;
+        volumeBtn.addEventListener('click', function() {
+            isMuted = !isMuted;
+            if (isMuted) {
+                volumeBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                if (synth && synth.speaking) {
+                    synth.pause();
+                    avatarContainer.classList.remove('speaking');
+                }
+            } else {
+                volumeBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                if (synth && synth.paused) {
+                    synth.resume();
+                    avatarContainer.classList.add('speaking');
+                }
+            }
+        });
+
+        // 新增：显示问答面板并自动隐藏
+        function showQaPanel(question, answer) {
+            // 清除之前的定时器
+            if (qaDisplayTimer) {
+                clearTimeout(qaDisplayTimer);
+                qaDisplayTimer = null;
+            }
+            
+            // 设置问答内容
+            questionDisplay.textContent = `问：${question}`;
+            answerDisplay.textContent = `答：${answer}`;
+            
+            // 显示面板
+            qaDisplayPanel.classList.add('show');
+            
+            // 5秒后隐藏面板
+            qaDisplayTimer = setTimeout(() => {
+                qaDisplayPanel.classList.remove('show');
+                // 清空内容（可选）
+                questionDisplay.textContent = '';
+                answerDisplay.textContent = '';
+                qaDisplayTimer = null;
+            }, 5000); // 5000毫秒 = 5秒
+        }
+
+        // 独立封装：启动/重启语音识别（核心修复逻辑）
+        function startSpeechRecognition() {
+            // 先停止可能存在的旧识别实例，避免多实例冲突
+            if (recognition) {
+                recognition.stop();
+                recognition = null;
+            }
+
+            // 检测浏览器是否支持语音识别
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                console.log('浏览器不支持语音识别，仅保持通话中视觉状态');
+                return;
+            }
+
+            // 初始化语音识别（非持续模式，避免结果残留）
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN'; // 中文识别
+            recognition.continuous = false; // 关闭持续识别！每次只识别一次语音输入
+            recognition.interimResults = false; // 只返回最终精准结果
+            recognition.maxAlternatives = 1; // 只取最优识别结果
+
+            // 识别结果处理：每次识别都重新匹配，杜绝答案残留
+            recognition.onresult = function(event) {
+                // 重置匹配状态，确保每次识别都是全新匹配
+                let matchedAnswer = null;
+                
+                // 确保识别结果有效
+                if (!event.results || event.results.length === 0 || !event.results[0][0]) {
+                    console.log('无有效识别结果，跳过匹配');
+                    // 重新启动识别，等待下一次输入
+                    if (isCalling) startSpeechRecognition();
+                    return;
+                }
+                
+                const transcript = event.results[0][0].transcript.trim();
+                console.log('========== 新的语音识别结果 ==========');
+                console.log('识别到语音内容:', transcript);
+                
+                // 严格匹配：遍历问答库，只返回完全一致的项（每次都重新遍历，无残留）
+                for (let i = 0; i < qaDatabase.length; i++) {
+                    const item = qaDatabase[i];
+                    console.log(`匹配对比：识别内容="${transcript}" vs 问答库问题="${item.question}"`);
+                    if (item.question === transcript) {
+                        matchedAnswer = item.answer;
+                        break; // 找到完全匹配项后立即终止遍历
+                    }
+                }
+                
+                // 只有完全匹配到，才回复对应答案；否则静默不回应
+                if (matchedAnswer) {
+                    console.log('匹配成功！回复答案:', matchedAnswer);
+                    // 新增：显示问答面板
+                    showQaPanel(transcript, matchedAnswer);
+                    speakAnswer(matchedAnswer);
+                } else {
+                    console.log('无匹配的问题，不回复');
+                }
+
+                // 关键：识别完成后立即重启识别，模拟持续对话，但每次都是全新识别
+                if (isCalling) {
+                    setTimeout(() => {
+                        startSpeechRecognition();
+                        console.log('语音识别已重启，等待下一次提问...');
+                    }, 300); // 短延迟避免重启过快导致的异常
+                }
+            };
+
+            // 识别错误：无任何主动回复，重启识别
+            recognition.onerror = function(event) {
+                if (event.error !== 'no-speech') { // 忽略无语音输入的错误
+                    console.error('语音识别错误:', event.error);
+                }
+                // 错误后仍重启识别，保持通话状态
+                if (isCalling) {
+                    setTimeout(() => startSpeechRecognition(), 300);
+                }
+            };
+
+            // 识别结束：不再自动重启（改为在onresult里手动重启，更可控）
+            recognition.onend = function() {
+                console.log('本次语音识别会话结束');
+                // 这里不再自动重启，避免重复触发
+            };
+
+            // 识别开始回调，确认识别已启动
+            recognition.onstart = function() {
+                console.log('语音识别已启动，等待单次语音输入...');
+            };
+
+            // 启动识别
+            recognition.start();
+        }
+
+        // 语音播报答案（确保每次只播报匹配到的对应答案，无残留）
+        function speakAnswer(text) {
+            // 双重校验：静音/非通话中时不播报
+            if (isMuted || !isCalling || !text) {
+                console.log('播报条件不满足：静音=' + isMuted + '，通话中=' + isCalling + '，文本=' + text);
+                return;
+            }
+            
+            // 强制停止上一次播报，彻底避免答案叠加/残留
+            if (synth && synth.speaking) {
+                synth.cancel();
+                console.log('已停止上一次未完成的语音播报');
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-CN';
+            utterance.rate = 1; // 语速
+            utterance.pitch = 1; // 音调
+            utterance.volume = 1; // 音量
+
+            // 播报开始：显示波纹动效
+            utterance.onstart = function() {
+                console.log('开始播报：', text);
+                avatarContainer.classList.add('speaking');
+            };
+
+            // 播报结束：隐藏波纹动效
+            utterance.onend = function() {
+                console.log('播报完成，波纹动效关闭');
+                avatarContainer.classList.remove('speaking');
+            };
+
+            // 播报出错：隐藏波纹动效
+            utterance.onerror = function(err) {
+                console.error('语音播报错误:', err);
+                avatarContainer.classList.remove('speaking');
+            };
+
+            synth.speak(utterance);
+        }
+
+        // 点击空白处关闭弹窗
+        window.addEventListener('click', function(e) {
+            if (e.target === settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
